@@ -1,0 +1,24 @@
+[Unit]
+Description=Graph Relay (SMTP to Microsoft Graph)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=graphrelay
+Group=graphrelay
+WorkingDirectory=/opt/graphrelay
+EnvironmentFile=/etc/graphrelay.env
+ExecStart=/opt/graphrelay/graphrelay -config /opt/graphrelay/config.yaml
+Restart=on-failure
+RestartSec=30
+
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/graphrelay
+
+[Install]
+WantedBy=multi-user.target

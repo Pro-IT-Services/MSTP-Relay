@@ -1,0 +1,60 @@
+{{define "content"}}{{$csrf := .CSRF}}{{with .D}}{{$allowed := .Allowed}}
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h2>Allowed hosts</h2>
+      <p class="muted small">Only clients matching an enabled rule may relay. Each rule sends as its own Microsoft 365 mailbox.
+      When several rules match, the most specific wins (exact IP or hostname, then the longest network prefix).</p>
+    </div>
+    <a href="/hosts/new" class="btn primary">Add host</a>
+  </div>
+  {{if .Hosts}}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Address / network</th><th>Sends as</th><th>From header</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {{range .Hosts}}
+    <tr class="{{if not .Enabled}}dim{{end}}">
+      <td><strong>{{.Name}}</strong>{{if .Note}}<br><span class="muted small">{{.Note}}</span>{{end}}</td>
+      <td class="mono">{{.Match}}{{if .SMTPUser}} <span class="pill" title="Must also log in as {{.SMTPUser}}">login</span>{{end}}</td>
+      <td>{{.Sender}}{{if not (index $allowed .Sender)}} <span class="pill warn" title="Not in Settings → Allowed sender mailboxes. Mail from this host is rejected.">not allowed</span>{{end}}</td>
+      <td>{{if .RewriteFrom}}<span class="pill">rewritten</span>{{else}}<span class="pill warn">kept</span>{{end}}</td>
+      <td>
+        <form method="post" action="/hosts/{{.ID}}/toggle" class="inline">
+          <input type="hidden" name="csrf" value="{{$csrf}}">
+          <button class="pill-btn {{if .Enabled}}ok{{end}}" title="Click to {{if .Enabled}}disable{{else}}enable{{end}}">{{if .Enabled}}enabled{{else}}disabled{{end}}</button>
+        </form>
+      </td>
+      <td class="actions">
+        <a href="/hosts/{{.ID}}" class="btn ghost small">Edit</a>
+        <form method="post" action="/hosts/{{.ID}}/delete" class="inline" data-confirm="Delete host “{{.Name}}”?">
+          <input type="hidden" name="csrf" value="{{$csrf}}">
+          <button class="btn danger small">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{else}}
+  <div class="empty">
+    <p>No hosts yet. Nothing can relay until you add one.</p>
+    <a href="/hosts/new" class="btn primary">Add your first host</a>
+  </div>
+  {{end}}
+</section>
+
+<section class="card">
+  <h2>Which rule applies?</h2>
+  <form method="get" action="/hosts" class="row">
+    <input name="check" placeholder="Client IP, e.g. 10.0.0.25" value="{{with .Check}}{{.IP}}{{end}}" class="grow">
+    <button class="btn">Check</button>
+  </form>
+  {{with .Check}}
+    {{if not .Valid}}<p class="flash err">“{{.IP}}” is not a valid IP address.</p>
+    {{else if .Host}}<p class="flash ok">{{.IP}} matches <strong>{{.Host.Name}}</strong> ({{.Host.Match}}) and sends as <strong>{{.Host.Sender}}</strong>.</p>
+    {{else}}<p class="flash err">{{.IP}} matches no enabled rule and would be rejected.</p>{{end}}
+  {{end}}
+</section>
+{{end}}{{end}}

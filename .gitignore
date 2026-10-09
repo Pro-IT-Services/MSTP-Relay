@@ -1,0 +1,24 @@
+# Allowlist: everything is ignored unless listed below, so local notes, site configs,
+# secrets, backups and tool folders can't be committed by accident.
+/*
+
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/Dockerfile
+!/go.mod
+!/go.sum
+!/config.example.yaml
+!/cmd/
+!/internal/
+!/deploy/
+!/docs/
+
+# Never commit inside the allowed folders either.
+*.env
+!/deploy/graphrelay.env.example
+config.yaml
+!/config.example.yaml
+data/
+*.db
+*.bundle

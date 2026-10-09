@@ -1,0 +1,24 @@
+{{define "content"}}{{$csrf := .CSRF}}{{with .D}}
+<form method="post" action="/test" class="card form">
+  <input type="hidden" name="csrf" value="{{$csrf}}">
+  <p class="muted small">Sends a message directly through Microsoft Graph, which checks the app registration and mailbox permissions without involving SMTP.</p>
+  {{if .Error}}<div class="flash err">{{.Error}}</div>{{end}}
+  <label>Send as mailbox
+    {{$cur := .Mailbox}}
+    <select name="mailbox" class="full" required>
+      {{range .Senders}}<option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{.}}</option>{{end}}
+    </select>
+    {{if not .Senders}}<span class="hint">No mailboxes are allowed yet. Add them under <a href="/settings">Settings → Allowed sender mailboxes</a>.</span>{{end}}
+  </label>
+  <label>Recipient
+    <input name="to" type="email" value="{{.To}}" required placeholder="you@contoso.com">
+  </label>
+  <label>Subject
+    <input name="subject" value="{{.Subject}}" required>
+  </label>
+  <label>Body
+    <textarea name="body" rows="5">{{.Body}}</textarea>
+  </label>
+  <div class="row"><button class="btn primary">Send test</button></div>
+</form>
+{{end}}{{end}}

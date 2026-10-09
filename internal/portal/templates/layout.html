@@ -1,0 +1,65 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · Graph Relay</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+{{if eq .Active "login"}}
+<main class="login-wrap">{{template "content" .}}</main>
+{{else}}
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><img src="/static/icon.svg" alt="" width="28" height="28"><span>Graph Relay</span></div>
+    <nav>
+      <a href="/" {{if eq .Active "dashboard"}}class="active"{{end}}>Dashboard</a>
+      <a href="/hosts" {{if or (eq .Active "hosts") (eq .Active "host_form")}}class="active"{{end}}>Allowed hosts</a>
+      <a href="/logs" {{if eq .Active "logs"}}class="active"{{end}}>Message log</a>
+      <a href="/test" {{if eq .Active "test"}}class="active"{{end}}>Send test</a>
+      <a href="/settings" {{if eq .Active "settings"}}class="active"{{end}}>Settings</a>
+    </nav>
+    <div class="whoami">{{if .User}}<span class="who">{{.User}}</span><span class="how">{{if eq .Method "microsoft"}}Microsoft account{{else}}local account{{end}}</span>{{end}}
+    <form method="post" action="/logout" class="logout">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <button class="btn ghost small">Sign out</button>
+    </form>
+    </div>
+  </aside>
+  <main class="content">
+    <header class="page-head"><h1>{{.Title}}</h1></header>
+    {{if .Flash}}<div class="flash {{if .FlashOK}}ok{{else}}err{{end}}">{{.Flash}}</div>{{end}}
+    {{template "content" .}}
+  </main>
+</div>
+{{end}}
+</body>
+</html>{{end}}
+
+{{define "logtable"}}
+{{if .}}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Time</th><th>Status</th><th>Client</th><th>Host → Mailbox</th><th>Recipients</th><th>Subject</th><th>Size</th></tr></thead>
+  <tbody>
+  {{range .}}
+  <tr>
+    <td class="nowrap" title="{{fmtTime .Time}}">{{ago .Time}}</td>
+    <td><span class="pill {{if eq .Status "sent"}}ok{{else if eq .Status "failed"}}bad{{else}}warn{{end}}">{{.Status}}</span></td>
+    <td class="mono">{{.ClientIP}}<span class="muted">:{{.Port}}</span></td>
+    <td>{{if .HostName}}{{.HostName}}<br><span class="muted small">{{.Sender}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+    <td class="clip" title="{{.Recipients}}">{{.Recipients}}</td>
+    <td class="clip" title="{{.Subject}}">{{.Subject}}{{if .Error}}<div class="err-line" title="{{.Error}}">{{.Error}}</div>{{end}}</td>
+    <td class="nowrap">{{if .Size}}{{bytes .Size}}{{end}}</td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}
+<p class="muted">No messages yet.</p>
+{{end}}
+{{end}}

@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch Graph Relay's firewall allowlist
+
+[Path]
+PathChanged=/opt/graphrelay/data/firewall-allowlist.txt
+Unit=graphrelay-fw.service
+
+[Install]
+WantedBy=multi-user.target

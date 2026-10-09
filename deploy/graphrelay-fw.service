@@ -1,0 +1,22 @@
+[Unit]
+Description=Load Graph Relay host rules into the nftables SMTP allowlist
+After=nftables.service
+# Re-run whenever nftables (re)loads its ruleset, which empties the sets.
+PartOf=nftables.service
+# No start rate limit: hitting it would also stop graphrelay-fw.path from watching. The relay only
+# rewrites the file when the allowlist actually changes.
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/graphrelay-fw-sync
+# CAP_DAC_READ_SEARCH: read the allowlist inside the relay's 0700 data directory.
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_DAC_READ_SEARCH
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_NETLINK AF_UNIX
+
+[Install]
+WantedBy=multi-user.target nftables.service

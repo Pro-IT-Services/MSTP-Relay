@@ -1,0 +1,70 @@
+{{define "content"}}{{$csrf := .CSRF}}{{with .D}}
+<form method="post" action="/hosts/save" class="card form">
+  <input type="hidden" name="csrf" value="{{$csrf}}">
+  <input type="hidden" name="id" value="{{.Host.ID}}">
+  {{if .Error}}<div class="flash err">{{.Error}}</div>{{end}}
+
+  <label>Name
+    <input name="name" value="{{.Host.Name}}" required maxlength="100" placeholder="Office printers">
+  </label>
+
+  <label>Address / network
+    <input name="match" value="{{.Host.Match}}" required class="mono" placeholder="10.0.0.25  or  10.0.0.0/24  or  scanner.corp.local">
+    <span class="hint">A single IP (IPv4 or IPv6), a network in CIDR notation, or a DNS hostname (resolved when the client connects, cached 2 minutes).</span>
+  </label>
+
+  <label>Sends as mailbox
+    {{$cur := .Host.Sender}}{{$found := false}}{{range .Senders}}{{if eq . $cur}}{{$found = true}}{{end}}{{end}}
+    <select name="sender" class="full" required>
+      <option value="" {{if not $cur}}selected{{end}} disabled>Choose a mailbox…</option>
+      {{range .Senders}}<option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{.}}</option>{{end}}
+      {{if and $cur (not $found)}}<option value="{{$cur}}" selected>{{$cur}} (no longer allowed, choose another)</option>{{end}}
+    </select>
+    {{if not .Senders}}<span class="hint">No mailboxes are allowed yet. Add them under <a href="/settings">Settings → Allowed sender mailboxes</a>.</span>
+    {{else}}<span class="hint">The Microsoft 365 mailbox used to send through Graph. Messages appear in its Sent Items. The list is managed under <a href="/settings">Settings</a>.</span>{{end}}
+  </label>
+
+  <fieldset class="group">
+    <legend>SMTP login (optional)</legend>
+    <p class="hint">Leave empty to allow this host by its address alone. When set, the host must <em>also</em> log in
+    (AUTH PLAIN or LOGIN). Login is only offered over TLS: STARTTLS on port 25/587, or port 465.</p>
+    <label>Username
+      <input name="smtp_user" value="{{.Host.SMTPUser}}" maxlength="64" autocomplete="off" class="mono" placeholder="e.g. printer01">
+    </label>
+    <label>Password
+      <span class="row">
+        <input name="smtp_password" id="smtp_password" type="password" minlength="12" autocomplete="new-password" class="mono grow"
+          placeholder="{{if .Host.SMTPPassHash}}•••••••• (leave empty to keep the current password){{else}}at least 12 characters{{end}}">
+        <button type="button" class="btn ghost small" data-generate="smtp_password">Generate</button>
+      </span>
+      <span class="hint">Shown only while you type or generate it. It's stored as a hash and can't be displayed later, so copy it to the device now.</span>
+    </label>
+    {{if .Host.SMTPUser}}
+    <label class="check">
+      <input type="checkbox" name="smtp_remove">
+      <span><strong>Remove SMTP login</strong> (allow this host by address only)</span>
+    </label>
+    {{end}}
+  </fieldset>
+
+  <label class="check">
+    <input type="checkbox" name="rewrite_from" {{if .Host.RewriteFrom}}checked{{end}}>
+    <span><strong>Rewrite the From header</strong> to this mailbox (the display name is kept).
+    <span class="hint">Leave on unless the app grants the mailbox <em>Send As</em> rights for the addresses the device uses.</span></span>
+  </label>
+
+  <label class="check">
+    <input type="checkbox" name="enabled" {{if .Host.Enabled}}checked{{end}}>
+    <span><strong>Enabled</strong></span>
+  </label>
+
+  <label>Note
+    <textarea name="note" rows="2" maxlength="500" placeholder="Optional">{{.Host.Note}}</textarea>
+  </label>
+
+  <div class="row">
+    <button class="btn primary">Save</button>
+    <a href="/hosts" class="btn ghost">Cancel</a>
+  </div>
+</form>
+{{end}}{{end}}

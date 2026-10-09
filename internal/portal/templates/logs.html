@@ -1,0 +1,22 @@
+{{define "content"}}{{with .D}}
+<section class="card">
+  <form method="get" action="/logs" class="row">
+    <input name="q" value="{{.Query}}" placeholder="Search IP, host, mailbox, recipient, subject…" class="grow">
+    <select name="status">
+      <option value="">All statuses</option>
+      <option value="sent" {{if eq .Status "sent"}}selected{{end}}>Sent</option>
+      <option value="failed" {{if eq .Status "failed"}}selected{{end}}>Failed</option>
+      <option value="rejected" {{if eq .Status "rejected"}}selected{{end}}>Rejected</option>
+    </select>
+    <button class="btn">Filter</button>
+  </form>
+</section>
+<section class="card">
+  {{template "logtable" .Entries}}
+  <div class="row pager">
+    {{if .HasPrev}}<a class="btn ghost small" href="/logs?q={{.Query}}&amp;status={{.Status}}&amp;page={{.Prev}}">← Newer</a>{{end}}
+    <span class="muted small">Page {{.Page}}</span>
+    {{if .HasNx}}<a class="btn ghost small" href="/logs?q={{.Query}}&amp;status={{.Status}}&amp;page={{.Next}}">Older →</a>{{end}}
+  </div>
+</section>
+{{end}}{{end}}

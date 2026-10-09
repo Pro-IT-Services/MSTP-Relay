@@ -1,0 +1,24 @@
+{{define "content"}}{{with .D}}
+<div class="card login">
+  <div class="brand center"><img src="/static/icon.svg" alt="" width="36" height="36"><span>Graph Relay</span></div>
+  <p class="muted center">SMTP → Microsoft Graph relay management</p>
+  {{if .Error}}<div class="flash err">{{.Error}}</div>{{end}}
+
+  {{if .Microsoft}}
+  <a href="/auth/microsoft" class="btn ms wide">
+    <svg width="18" height="18" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+    Sign in with Microsoft
+  </a>
+  <p class="muted small center">Only administrators of this relay can sign in.</p>
+  {{end}}
+
+  {{if .Local}}
+  {{if .Microsoft}}<div class="divider"><span>or emergency local account</span></div>{{end}}
+  <form method="post" action="/login" class="stack">
+    <label>Username<input name="username" autocomplete="username" required {{if not .Microsoft}}autofocus{{end}} value="admin"></label>
+    <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+    <button class="btn {{if .Microsoft}}ghost{{else}}primary{{end}} wide">Sign in</button>
+  </form>
+  {{end}}
+</div>
+{{end}}{{end}}

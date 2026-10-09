@@ -1,0 +1,48 @@
+{{define "content"}}{{with .D}}
+<section class="tiles">
+  <div class="tile"><span class="label">Sent · 24h</span><span class="value">{{.Stats.Sent24h}}</span></div>
+  <div class="tile"><span class="label">Failed · 24h</span><span class="value {{if .Stats.Failed24h}}bad{{end}}">{{.Stats.Failed24h}}</span></div>
+  <div class="tile"><span class="label">Rejected · 24h</span><span class="value">{{.Stats.Rejected24h}}</span></div>
+  <div class="tile"><span class="label">Allowed hosts</span><span class="value">{{.EnabledHosts}}<small> / {{.Hosts}}</small></span></div>
+</section>
+
+<section class="grid2">
+  <div class="card">
+    <h2>Microsoft Graph</h2>
+    {{if .GraphErr}}
+      <p><span class="pill bad">Error</span> Could not obtain an access token.</p>
+      <pre class="err-box">{{.GraphErr}}</pre>
+    {{else}}
+      <p><span class="pill ok">Connected</span> Access token obtained.</p>
+    {{end}}
+  </div>
+  <div class="card">
+    <h2>TLS certificate</h2>
+    {{if .Cert.Err}}
+      <p><span class="pill bad">Error</span> {{.Cert.Err}}</p>
+    {{else}}
+      {{$d := days .Cert.NotAfter}}
+      <p><span class="pill {{if lt $d 14}}bad{{else}}ok{{end}}">{{if lt $d 0}}Expired{{else}}Valid{{end}}</span>
+        {{.TLSMode}} · issued by {{.Cert.Issuer}}</p>
+      <dl class="kv">
+        <dt>Names</dt><dd>{{range $i, $n := .Cert.Subject}}{{if $i}}, {{end}}{{$n}}{{end}}</dd>
+        <dt>Expires</dt><dd>{{fmtTime .Cert.NotAfter}} ({{$d}} days)</dd>
+      </dl>
+      <p class="muted small">Renewed automatically about 30 days before expiry.</p>
+    {{end}}
+  </div>
+</section>
+
+<section class="card">
+  <h2>Listeners</h2>
+  <dl class="kv">
+    {{range .Ports}}<dt>{{index . 0}}</dt><dd>{{index . 1}}</dd>{{end}}
+    <dt>Uptime</dt><dd>{{.Uptime}}</dd>
+  </dl>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Recent messages</h2><a href="/logs" class="btn ghost small">View all</a></div>
+  {{template "logtable" .Recent}}
+</section>
+{{end}}{{end}}

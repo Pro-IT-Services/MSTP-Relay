@@ -1,0 +1,75 @@
+# Graph Relay configuration.
+# ${VAR} references are replaced from environment variables, so secrets can stay out of this file.
+
+# Public DNS name of this server. Used in the SMTP greeting and on the TLS certificate.
+# Create an A/AAAA record for it pointing at this server.
+hostname: smtp.example.com
+
+# Database, certificates and ACME account are stored here.
+data_dir: ./data
+
+# Days to keep the message log (0 = forever).
+log_retention_days: 30
+
+smtp:
+  listen_smtp: ":25"         # plain SMTP, STARTTLS offered
+  listen_smtps: ":465"       # implicit TLS
+  listen_submission: ":587"  # submission, STARTTLS
+  require_tls_on_submission: true
+  max_message_bytes: 36700160  # 35 MB (Graph allows up to 150 MB)
+  max_recipients: 100
+  read_timeout: 2m
+  write_timeout: 2m
+
+tls:
+  # "acme" = Let's Encrypt via Cloudflare DNS-01, renewed automatically.
+  # "selfsigned" = throwaway certificate for local testing.
+  mode: acme
+  acme_email: admin@example.com
+  acme_staging: false               # set true while testing to avoid rate limits
+  cloudflare_api_token: ${CLOUDFLARE_API_TOKEN}   # needs Zone:Read + DNS:Edit on the zone
+  extra_domains: []                 # e.g. [relay.example.com]
+  resolvers: ["1.1.1.1:53"]
+  # Set true if your network redirects all outbound DNS to an internal (split-horizon) server:
+  # the relay then can't see the challenge record and would time out. It waits a fixed delay instead.
+  skip_dns_propagation_check: false
+  dns_propagation_delay: 60s
+
+graph:
+  tenant_id: ${GRAPH_TENANT_ID}
+  client_id: ${GRAPH_CLIENT_ID}
+  client_secret: ${GRAPH_CLIENT_SECRET}
+  timeout: 5m
+
+portal:
+  listen: ":8443"
+  # Restrict who can reach the portal (IPs or CIDRs). Empty = anyone.
+  allowed_cidrs: ["10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12", "127.0.0.1"]
+  # Used only on first start. If empty, a random password is generated and printed to the log.
+  initial_admin_password: ""
+
+  # "Sign in with Microsoft" using the same app registration as Graph.
+  # graph.tenant_id must be the tenant GUID when this is enabled.
+  microsoft_login:
+    enabled: true
+    # Users need one of these app roles (assigned in Entra ID → Enterprise applications).
+    required_roles: ["Relay.Admin"]
+    # Optionally also admit Entra directory roles by template ID, e.g. Global Administrator:
+    # allowed_directory_roles: ["62e90394-69f5-4237-9190-012177145e10"]
+    allowed_directory_roles: []
+    # Defaults to https://<hostname>[:port]/auth/callback — register it as a Web redirect URI.
+    redirect_url: ""
+    # Use a separate app registration for sign-in (defaults to the graph.* credentials).
+    # client_id: ""
+    # client_secret: ""
+
+  # Local admin/password login. Defaults to false when microsoft_login is enabled.
+  # Set true to keep it as a break-glass account in case Entra ID is unreachable or misconfigured.
+  # Can come from the environment: allow_local_login: ${GRAPHRELAY_ALLOW_LOCAL_LOGIN}
+  # (unset or empty = the default above).
+  allow_local_login: false
+
+# Optional (Linux + nftables): write the enabled host rules as an IP allowlist for
+# deploy/graphrelay-fw-sync, so the SMTP ports open only for configured hosts. Empty = off.
+firewall:
+  allowlist_file: ""   # e.g. /opt/graphrelay/data/firewall-allowlist.txt

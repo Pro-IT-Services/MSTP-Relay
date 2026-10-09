@@ -1,0 +1,45 @@
+{{define "content"}}{{$csrf := .CSRF}}{{with .D}}
+<section class="grid2">
+  {{if .LocalLogin}}
+  <form method="post" action="/settings/password" class="card form">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <h2>Change admin password</h2>
+    {{if .Error}}<div class="flash err">{{.Error}}</div>{{end}}
+    <label>Current password<input name="current" type="password" autocomplete="current-password" required></label>
+    <label>New password<input name="new" type="password" autocomplete="new-password" minlength="10" required></label>
+    <label>Confirm new password<input name="confirm" type="password" autocomplete="new-password" minlength="10" required></label>
+    <div class="row"><button class="btn primary">Change password</button></div>
+  </form>
+  {{end}}
+
+  <form method="post" action="/settings/senders" class="card form">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <h2>Allowed sender mailboxes</h2>
+    <p class="muted small">The only mailboxes host rules and test messages can send as. One address per line.
+    Each one must also be in the app's Exchange scope, otherwise Graph refuses to send. Set custom attribute 15
+    to <span class="mono">GraphRelay</span> on the mailbox, either way:</p>
+    <ul class="muted small">
+      <li><strong>Exchange admin center</strong> (<a href="https://admin.exchange.microsoft.com/#/mailboxes" target="_blank" rel="noopener">admin.exchange.microsoft.com</a>):
+        Recipients → Mailboxes → click the mailbox → <em>Others</em> → <em>Custom attributes</em> →
+        field <strong>15</strong> = <span class="mono">GraphRelay</span> → Save.</li>
+      <li><strong>PowerShell:</strong> <span class="mono">Set-Mailbox &lt;address&gt; -CustomAttribute15 "GraphRelay"</span></li>
+    </ul>
+    <p class="muted small">Exchange can take 30 minutes to 2 hours to apply it.</p>
+    {{if .SendersError}}<div class="flash err">{{.SendersError}}</div>{{end}}
+    {{if .Disallowed}}<div class="flash err">These enabled hosts use a mailbox that isn't listed, so their mail is rejected:
+      {{range $i, $h := .Disallowed}}{{if $i}}, {{end}}<a href="/hosts/{{$h.ID}}">{{$h.Name}}</a> ({{$h.Sender}}){{end}}</div>{{end}}
+    <label>Mailboxes
+      <textarea name="senders" rows="6" class="mono" placeholder="notifications@contoso.com&#10;scanner@contoso.com">{{.SendersText}}</textarea>
+    </label>
+    <div class="row"><button class="btn primary">Save mailboxes</button></div>
+  </form>
+
+  <section class="card">
+    <h2>Configuration</h2>
+    <p class="muted small">Read from the config file. Edit it and restart the service to change these.</p>
+    <dl class="kv">
+      {{range .Rows}}<dt>{{index . 0}}</dt><dd>{{index . 1}}</dd>{{end}}
+    </dl>
+  </section>
+</section>
+{{end}}{{end}}
