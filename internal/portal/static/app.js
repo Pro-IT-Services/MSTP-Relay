@@ -35,30 +35,65 @@ function nameWords(name) {
     .filter(Boolean);
 }
 
+// fitWords shortens a word list until it fits max characters when joined with one separator
+// each. It keeps what identifies the device: the first word, the last word and codes containing
+// digits. Plain words in the middle are dropped first (longest first); letters are trimmed only
+// when nothing else is left to drop.
+function fitWords(words, max) {
+  const w = words.slice();
+  const len = () => w.join("-").length;
+  const isCode = (x) => /\d/.test(x);
+  while (len() > max) {
+    let drop = -1;
+    for (let i = 1; i < w.length - 1; i++) {
+      if (!isCode(w[i]) && (drop < 0 || w[i].length > w[drop].length)) drop = i;
+    }
+    if (drop >= 0) {
+      w.splice(drop, 1);
+      continue;
+    }
+    let trim = -1;
+    for (let i = 0; i < w.length; i++) {
+      if (!isCode(w[i]) && w[i].length > 4 && (trim < 0 || w[i].length > w[trim].length)) trim = i;
+    }
+    if (trim >= 0) w[trim] = w[trim].slice(0, -1);
+    else if (w.length > 2) w.splice(Math.floor(w.length / 2), 1);
+    else w[w.length - 1] = w[w.length - 1].slice(0, -1);
+  }
+  return w;
+}
+
+// uniq drops repeated words, so short names don't produce "printer-printer".
+function uniq(words) {
+  return words.filter((x, i) => words.indexOf(x) === i);
+}
+
 // suggestUsername returns a username for the given host name. step selects the style, so
-// repeated clicks give different results. Output matches the server's [A-Za-z0-9._@+-]{1,64}.
+// repeated clicks give different results. Every style draws on the whole name: all words where
+// they fit, otherwise the parts that identify the device (first word, codes with digits, last
+// words). Output matches the server's [A-Za-z0-9._@+-]{1,64}.
 function suggestUsername(name, step) {
-  // Keep only as many whole words as fit in ~20 characters, so suffixes are never cut off.
-  let w = nameWords(name);
-  while (w.length > 1 && w.join("-").length > 20) w = w.slice(0, -1);
-  if (w.length === 1) w = [w[0].slice(0, 20)];
+  const w = nameWords(name);
   const nn = String(10 + randInt(90));
   if (w.length === 0) {
     return ADJECTIVES[randInt(ADJECTIVES.length)] + "-" + ANIMALS[randInt(ANIMALS.length)] + "-" + nn;
   }
+  const first = w[0];
   const last = w[w.length - 1];
+  const codes = w.filter((x) => /\d/.test(x)); // model numbers, room codes
   const initials = w.slice(0, -1).map((x) => x[0]).join("");
+  // Examples for the host name "Office Scanner X200 Room 3b East":
   const styles = [
-    () => w.join("-"), //                          office-scanner
-    () => w.join("."), //                          office.scanner
-    () => (initials + last) + nn, //               oscanner47
-    () => "svc-" + w.join("-"), //                 svc-office-scanner
-    () => w[0] + "-" + nn, //                      office-47
-    () => w.join("") + "-smtp", //                 officescanner-smtp
-    () => w.join("-") + "-" + ANIMALS[randInt(ANIMALS.length)], // office-scanner-lynx
-    () => "relay-" + (initials + last) + "-" + nn, // relay-oscanner-47
+    () => fitWords(w, 32).join("-"), //                           office-scanner-x200-room-3b-east
+    () => uniq([first, ...w.slice(-2)]).join("-"), //             office-3b-east
+    () => (codes.length ? uniq([...codes, last]) : fitWords(w, 32)).join(codes.length ? "-" : "."), // x200-3b-east
+    () => (initials ? initials + "-" : "") + last + nn, //         osxr3-east47
+    () => "svc-" + uniq([first, last]).join("-"), //              svc-office-east
+    () => uniq([last, ...w.slice(0, 2)]).join("-"), //            east-office-scanner
+    () => fitWords(uniq([first, ...codes, last]), 26).join("-") + "-smtp", // office-x200-3b-east-smtp
+    () => uniq([first, last]).join("-") + "-" + ANIMALS[randInt(ANIMALS.length)], // office-east-lynx
   ];
-  return styles[step % styles.length]().slice(0, 32).replace(/[-.]+$/, "");
+  return styles[step % styles.length]().slice(0, 40).replace(/[-.]+$/, "");
 }
 
 document.addEventListener("click", (e) => {
