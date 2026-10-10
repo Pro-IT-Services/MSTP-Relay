@@ -1,7 +1,9 @@
 package relay
 
 import (
+	"bufio"
 	"crypto/tls"
+	"net"
 	"net/smtp"
 	"strings"
 	"testing"
@@ -101,6 +103,60 @@ func TestConnLogTLSFailures(t *testing.T) {
 	c = e.lastConn(t, 2)
 	if c.Outcome != store.ConnTLSFailed || !strings.Contains(c.Detail, "may not trust") {
 		t.Fatalf("untrusted-certificate record = %+v", c)
+	}
+}
+
+// handshakeOnly connects, upgrades to TLS on the raw connection and closes without any SMTP
+// command inside TLS, like a monitoring probe.
+func (e *env) handshakeOnly(t *testing.T, cfg *tls.Config) error {
+	t.Helper()
+	conn, err := net.Dial("tcp", e.addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	r := bufio.NewReader(conn)
+	expect := func(code string) {
+		for {
+			line, err := r.ReadString('\n')
+			if err != nil {
+				t.Fatalf("waiting for %s: %v", code, err)
+			}
+			if strings.HasPrefix(line, code+" ") {
+				return
+			}
+		}
+	}
+	expect("220")
+	conn.Write([]byte("EHLO probe.test\r\n"))
+	expect("250")
+	conn.Write([]byte("STARTTLS\r\n"))
+	expect("220")
+	tc := tls.Client(conn, cfg)
+	defer tc.Close()
+	return tc.Handshake()
+}
+
+// The handshake result must be right for both protocol versions, whether or not SMTP follows.
+func TestConnLogHandshakeResultPerVersion(t *testing.T) {
+	for name, v := range map[string]uint16{"TLS 1.2": tls.VersionTLS12, "TLS 1.3": tls.VersionTLS13} {
+		e := setupAuth(t)
+
+		// Completed handshake, then nothing: not a problem.
+		if err := e.handshakeOnly(t, &tls.Config{InsecureSkipVerify: true, MinVersion: v, MaxVersion: v}); err != nil {
+			t.Fatalf("%s: handshake: %v", name, err)
+		}
+		if c := e.lastConn(t, 1); c.Outcome != store.ConnIdle || !strings.HasPrefix(c.TLS, name+" ") || !strings.Contains(c.Detail, "with TLS") {
+			t.Errorf("%s, completed handshake: %+v", name, c)
+		}
+
+		// The client rejects the (self-signed) certificate: a TLS failure.
+		if err := e.handshakeOnly(t, &tls.Config{ServerName: "relay.test", MinVersion: v, MaxVersion: v}); err == nil {
+			t.Fatalf("%s: untrusted certificate accepted", name)
+		}
+		if c := e.lastConn(t, 2); c.Outcome != store.ConnTLSFailed || c.TLS != "" || !strings.Contains(c.Detail, "may not trust") {
+			t.Errorf("%s, rejected certificate: %+v", name, c)
+		}
 	}
 }
 

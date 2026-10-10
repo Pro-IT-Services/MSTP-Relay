@@ -28,11 +28,14 @@ type connInfo struct {
 
 	helo string
 
-	helloSeen  bool   // a TLS ClientHello arrived
-	helloIssue string // why the handshake is expected to fail, "" if it should work
-	tlsDone    bool
-	tlsDesc    string // "TLS 1.2 ECDHE-RSA-AES128-GCM-SHA256"
-	certKey    string // "ECDSA" or "RSA"
+	helloSeen     bool   // a TLS ClientHello arrived
+	helloIssue    string // why the handshake is expected to fail, "" if it should work
+	tlsNegotiated bool   // version and cipher were agreed (VerifyConnection ran)
+	tlsVersion    uint16
+	readAfterTLS  int    // bytes received from the client after tlsNegotiated
+	tlsDone       bool   // the client spoke SMTP inside TLS
+	tlsDesc       string // "TLS 1.2 ECDHE-RSA-AES128-GCM-SHA256"
+	certKey       string // "ECDSA" or "RSA"
 
 	authUser  string
 	authOK    bool
@@ -50,6 +53,41 @@ type trackedConn struct {
 	info  *connInfo
 	relay *Relay
 	once  sync.Once
+}
+
+// Read counts what the client sends after the TLS parameters were agreed; see handshakeCompleted.
+func (c *trackedConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	if n > 0 {
+		c.info.mu.Lock()
+		if c.info.tlsNegotiated {
+			c.info.readAfterTLS += n
+		}
+		c.info.mu.Unlock()
+	}
+	return n, err
+}
+
+// handshakeCompleted reports whether the TLS handshake finished from the client's side too.
+// The TLS library gives the server no completion callback, so this is derived:
+//   - the client spoke SMTP inside TLS: certain;
+//   - TLS 1.2: VerifyConnection runs after the client's key exchange, which a client only sends
+//     once it has accepted the certificate;
+//   - TLS 1.3: VerifyConnection runs before the client has judged the certificate. The client then
+//     answers with either its Finished message (at least 58 bytes on the wire) or an alert
+//     (24 bytes), optionally preceded by a 6-byte compatibility record. 50 bytes separates them.
+//
+// Caller holds info.mu.
+func (info *connInfo) handshakeCompleted() bool {
+	switch {
+	case info.tlsDone:
+		return true
+	case !info.tlsNegotiated:
+		return false
+	case info.tlsVersion >= tls.VersionTLS13:
+		return info.readAfterTLS >= 50
+	}
+	return true
 }
 
 func (c *trackedConn) Close() error {
@@ -128,10 +166,10 @@ func (r *Relay) TLSConfig(base *tls.Config) *tls.Config {
 			}
 		}
 		// Called once the parameters are negotiated. That is not yet proof of success: in TLS 1.3
-		// the client can still reject the certificate afterwards, so tlsDone is only set when the
-		// client goes on to speak SMTP over the encrypted connection (see Backend).
+		// the client can still reject the certificate afterwards (see handshakeCompleted).
 		c.VerifyConnection = func(cs tls.ConnectionState) error {
 			info.mu.Lock()
+			info.tlsNegotiated, info.tlsVersion, info.readAfterTLS = true, cs.Version, 0
 			info.tlsDesc = tls.VersionName(cs.Version) + " " + tls.CipherSuiteName(cs.CipherSuite)
 			info.mu.Unlock()
 			return nil
@@ -187,7 +225,8 @@ func (r *Relay) finishConn(info *connInfo) {
 		Sent: info.sent, Failed: info.failed, Rejected: info.rejected,
 		DurationMS: time.Since(info.start).Milliseconds(),
 	}
-	if info.tlsDone {
+	tlsOK := info.handshakeCompleted()
+	if tlsOK {
 		e.TLS = info.tlsDesc
 	}
 	switch {
@@ -197,7 +236,7 @@ func (r *Relay) finishConn(info *connInfo) {
 		if n := info.failed + info.rejected; n > 0 {
 			e.Detail += fmt.Sprintf(", %d not delivered: %s", n, info.lastErr)
 		}
-	case info.helloSeen && !info.tlsDone:
+	case info.helloSeen && !tlsOK:
 		e.Outcome = store.ConnTLSFailed
 		e.Detail = "TLS handshake failed: "
 		if info.helloIssue != "" {
@@ -215,8 +254,11 @@ func (r *Relay) finishConn(info *connInfo) {
 	default:
 		e.Outcome = store.ConnIdle
 		e.Detail = "connected, no message sent"
-		if info.authOK {
+		switch {
+		case info.authOK:
 			e.Detail = "logged in, no message sent"
+		case tlsOK:
+			e.Detail = "connected with TLS, no message sent"
 		}
 	}
 	// Name the device by its host rule even if it never got to MAIL FROM.
