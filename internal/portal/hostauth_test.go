@@ -22,7 +22,8 @@ func TestHostSMTPLoginFields(t *testing.T) {
 		return url.Values{"name": {"printer"}, "match": {"10.0.0.9"}, "sender": {"scanner@contoso.com"}, "enabled": {"on"}}
 	}
 	_, form := e.get(t, "/hosts/new")
-	if !strings.Contains(form, `name="smtp_user"`) || !strings.Contains(form, `data-generate="smtp_password"`) {
+	if !strings.Contains(form, `name="smtp_user"`) || !strings.Contains(form, `data-generate="smtp_password"`) ||
+		!strings.Contains(form, `data-generate-user="smtp_user"`) {
 		t.Fatal("login fields missing on host form")
 	}
 

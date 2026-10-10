@@ -29,7 +29,10 @@
     <p class="hint">Leave empty to allow this host by its address alone. When set, the host must <em>also</em> log in
     (AUTH PLAIN or LOGIN). Login is only offered over TLS: STARTTLS on port 25/587, or port 465.</p>
     <label>Username
-      <input name="smtp_user" value="{{.Host.SMTPUser}}" maxlength="64" autocomplete="off" class="mono" placeholder="e.g. printer01">
+      <span class="row">
+        <input name="smtp_user" id="smtp_user" value="{{.Host.SMTPUser}}" maxlength="64" autocomplete="off" class="mono grow" placeholder="e.g. printer01">
+        <button type="button" class="btn ghost small" data-generate-user="smtp_user" title="Suggest a username from the host name. Click again for another one.">Generate</button>
+      </span>
     </label>
     <label>Password
       <span class="row">
