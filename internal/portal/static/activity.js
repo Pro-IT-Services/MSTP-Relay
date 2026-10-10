@@ -191,9 +191,12 @@
       el("tbody", {}, ...rows));
   }
 
-  function deviceCell(host, helo) {
+  // Link to the host form with the address already filled in.
+  const addHostLink = (ip) => el("a", { href: "/hosts/new?match=" + encodeURIComponent(ip), text: "Add a host" });
+
+  function deviceCell(host, helo, ip) {
     return el("td", {},
-      host ? el("strong", { text: host }) : el("span", { class: "pill warn", text: "no host rule" }),
+      host ? el("strong", { text: host }) : el("span", {}, el("span", { class: "pill warn", text: "no host rule" }), " ", addHostLink(ip)),
       helo ? el("div", { class: "muted small", text: "announces: " + helo }) : null);
   }
 
@@ -204,7 +207,7 @@
       const ip = el("button", { type: "button", class: "link mono", title: "Show only this address", text: v.ip });
       ip.addEventListener("click", () => setQuery(v.ip));
       return el("tr", {},
-        deviceCell(v.host, v.helo),
+        deviceCell(v.host, v.helo, v.ip),
         el("td", {}, ip),
         el("td", { class: "nowrap", title: fmtTime(v.lastSeen), text: ago(v.lastSeen) }),
         el("td", { class: "numcol", text: num(v.connections) }),
@@ -226,7 +229,7 @@
       el("td", { class: "nowrap", title: fmtTime(b.lastSeen), text: ago(b.lastSeen) }),
       el("td", {}, b.host
         ? el("span", {}, el("span", { class: "pill ok", text: "allowed now" }), ` by host rule “${b.host}”`)
-        : el("span", {}, "No enabled host rule. ", el("a", { href: "/hosts/new", text: "Add a host" }), " to let it send."))));
+        : el("span", {}, "No enabled host rule. ", addHostLink(b.ip), " to let it send."))));
     $("act-blocked").replaceChildren(table(["Address", "Dropped attempts", "Last attempt", ""], rows,
       "Nothing was blocked in this period."));
   }

@@ -3,6 +3,7 @@ package portal
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,6 +110,16 @@ func TestActivity(t *testing.T) {
 	if code != 200 || !strings.Contains(page, `id="act-chart"`) || !strings.Contains(page, `src="/static/activity.js"`) ||
 		!strings.Contains(page, `href="/activity" class="active"`) {
 		t.Fatalf("activity page = %d", code)
+	}
+	// "Add a host" next to an address opens the form with that address filled in; junk is ignored.
+	if _, form := e.get(t, "/hosts/new?match=198.51.100.77"); !strings.Contains(form, `name="match" value="198.51.100.77"`) {
+		t.Error("host form not prefilled from ?match=")
+	}
+	if _, form := e.get(t, "/hosts/new?match="+url.QueryEscape(`"><script>`)); !strings.Contains(form, `name="match" value=""`) {
+		t.Error("invalid ?match= was not ignored")
+	}
+	if _, js := e.get(t, "/static/activity.js"); !strings.Contains(js, `"/hosts/new?match=" + encodeURIComponent(ip)`) {
+		t.Error("activity.js doesn't link to the prefilled host form")
 	}
 	if code, js := e.get(t, "/static/activity.js"); code != 200 || strings.Contains(js, "innerHTML") {
 		t.Fatalf("activity.js = %d; it must not build HTML from data", code)

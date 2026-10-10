@@ -109,6 +109,8 @@ func (p *Portal) hostForm(w http.ResponseWriter, r *http.Request) {
 	title := "Add host"
 	if h.ID != 0 {
 		title = "Edit host"
+	} else if m, ok := relay.ValidateMatch(r.URL.Query().Get("match")); ok {
+		h.Match = m // prefilled from the Activity page ("Add a host" next to an address)
 	}
 	p.render(w, r, "host_form", title, hostFormData{Host: h, Senders: p.senders()})
 }
