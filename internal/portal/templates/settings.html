@@ -37,15 +37,17 @@
   {{if .Certs}}
   <section class="card">
     <h2>TLS certificates</h2>
-    <p class="muted small">The certificate chain this relay presents on the SMTP ports and the portal. A device that
+    <p class="muted small">The certificates this relay presents on the SMTP ports and the portal. A device that
     checks the relay's certificate (printers, scanners, appliances) needs the issuing CA in its trust store.
     Usually the <strong>Root CA</strong> is enough; if the device still refuses, import every CA certificate or the bundle.
     <strong>PEM</strong> is text (Linux, most appliances); <strong>DER (.cer)</strong> is binary (Windows, many printers).</p>
+    {{range .Certs}}{{$chain := .Key}}
+    <h3>{{.Label}}</h3>
     <div class="table-wrap">
     <table>
       <thead><tr><th>Role</th><th>Name</th><th>Issued by</th><th>Key</th><th>Expires</th><th>Download</th></tr></thead>
       <tbody>
-      {{range .Certs}}
+      {{range .Rows}}
       <tr>
         <td>{{if .Root}}<strong>{{.Role}}</strong>{{else}}{{.Role}}{{end}}</td>
         <td>{{.Subject}}</td>
@@ -53,17 +55,19 @@
         <td class="small">{{.Key}}</td>
         <td class="small">{{.NotAfter.Format "2006-01-02"}}</td>
         <td class="actions">
-          <a href="/settings/certs/{{.Index}}/pem" class="btn ghost small">PEM</a>
-          <a href="/settings/certs/{{.Index}}/der" class="btn ghost small">DER (.cer)</a>
+          <a href="/settings/certs/{{$chain}}/{{.Index}}/pem" class="btn ghost small">PEM</a>
+          <a href="/settings/certs/{{$chain}}/{{.Index}}/der" class="btn ghost small">DER (.cer)</a>
         </td>
       </tr>
       {{end}}
       </tbody>
     </table>
     </div>
+    {{end}}
     <div class="row"><a href="/settings/ca-bundle.pem" class="btn">Download CA bundle (PEM)</a></div>
-    <p class="muted small">The server certificate is renewed automatically about every 60 days, so import the CA
-    certificates, not the server certificate. Older devices may not support ECDSA keys.</p>
+    <p class="muted small">Each client automatically gets the certificate it supports: ECDSA where possible, RSA for
+    devices that only offer RSA cipher suites. The server certificates are renewed automatically about every 60 days,
+    so import the CA certificates, not the server certificates. The bundle holds the CA certificates of all chains.</p>
   </section>
   {{end}}
 

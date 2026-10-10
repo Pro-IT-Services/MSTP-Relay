@@ -34,6 +34,9 @@ tls:
   # the relay then can't see the challenge record and would time out. It waits a fixed delay instead.
   skip_dns_propagation_check: false
   dns_propagation_delay: 60s
+  # Keep an RSA certificate next to the ECDSA one and serve it to clients that can't use ECDSA.
+  # Many printers and scanners only support RSA cipher suites. Costs a second certificate.
+  rsa_fallback: true
 
 graph:
   tenant_id: ${GRAPH_TENANT_ID}

@@ -422,7 +422,7 @@ type settingsView struct {
 	SendersText  string
 	SendersError string
 	Disallowed   []store.Host
-	Certs        []certRow // the relay's certificate chain, for download
+	Certs        []certGroup // the relay's certificate chains, for download
 }
 
 func (p *Portal) settingsData(errMsg string) *settingsView {
@@ -463,7 +463,7 @@ func (p *Portal) settingsData(errMsg string) *settingsView {
 	return &settingsView{
 		Error: errMsg, LocalLogin: c.Portal.LocalLoginAllowed(),
 		SendersText: strings.Join(p.senders(), "\n"), Disallowed: p.hostsWithDisallowedSender(),
-		Certs: p.certRows(context.Background()),
+		Certs: p.certGroups(context.Background()),
 		Rows: append(rows, [][2]string{
 			{"Hostname", c.Hostname},
 			{"Certificate names", strings.Join(certNames, ", ")},

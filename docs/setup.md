@@ -204,6 +204,7 @@ Edit `config.yaml`:
 | `data_dir` | `/opt/graphrelay/data` |
 | `tls.acme_email` | an address for Let's Encrypt expiry notices |
 | `tls.skip_dns_propagation_check` | `true` only if your network redirects all outbound DNS to an internal resolver (see section 11) |
+| `tls.rsa_fallback` | `true` (default): also keep an RSA certificate for devices that can't use ECDSA |
 | `smtp.max_message_bytes` | up to `157286400` (150 MB) |
 | `portal.allowed_cidrs` | networks allowed to open the portal |
 | `portal.microsoft_login.enabled` | `true`, `required_roles: ["Relay.Admin"]` |
@@ -347,6 +348,7 @@ systemctl restart graphrelay
 | Portal: "... is not allowed to manage this relay" | No `Relay.Admin` role in the token: assign it, check nested groups, sign in again in a private window. The journal shows the roles found (`roles=[...]`) |
 | Certificate: `timed out waiting for record to fully propagate` | The network redirects outbound DNS to an internal resolver that doesn't see the Cloudflare TXT record. Set `tls.skip_dns_propagation_check: true` |
 | Certificate: Cloudflare `403` / `9109` | Token lacks `Zone:Read` or `DNS:Edit`, or isn't limited to the right zone |
+| Device reports an SSL/TLS error although the CA is imported | The device may support only RSA cipher suites or only TLS 1.0/1.1. RSA-only devices need `tls.rsa_fallback: true` (the default); the relay requires TLS 1.2 or newer. `LOG_LEVEL=debug` shows handshake errors |
 | Client: connection refused / timeout | No enabled host rule for its IP, so the firewall blocks it: `nft list set inet filter smtp4` and `journalctl -u graphrelay-fw.service` |
 | Client gets `530 Authentication required` | The rule has an SMTP login; configure it on the device (section 8) |
 | Client gets `554 ... Sender mailbox ... not allowed` | The rule's mailbox was removed from the allowed list |

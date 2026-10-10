@@ -172,14 +172,20 @@ disk, so a crash cannot lose accepted mail. Devices retry `451` by themselves.
   visible on the zone's authoritative nameservers. On networks that redirect all outbound DNS to an internal
   resolver (split-horizon), that check can never succeed; `skip_dns_propagation_check: true` replaces it with a
   fixed wait (`dns_propagation_delay`, default 60 s).
-- **`selfsigned` mode:** an in-memory ECDSA P-256 certificate valid for one year, for testing.
+- **Two certificates, chosen per client:** the relay holds an ECDSA P-256 certificate and, unless
+  `tls.rsa_fallback` is false, an RSA 2048 one (separate certmagic storage `data_dir/certs-rsa`, because
+  certmagic keeps one certificate per name). `Manager.pick` is the `GetCertificate` callback: it serves ECDSA
+  when `ClientHelloInfo.SupportsCertificate` accepts it and RSA otherwise. Many printers and scanners offer
+  only RSA cipher suites and cannot complete a handshake with an ECDSA certificate at all. If the RSA
+  certificate cannot be obtained, the relay starts anyway and logs a warning.
+- **`selfsigned` mode:** in-memory ECDSA P-256 and RSA 2048 certificates valid for one year, for testing.
 - The same `tls.Config` (TLS 1.2+) serves STARTTLS, port 465 and the portal.
 - **Chain for download (`chain.go`):** `Manager.Chain` returns the served chain and completes it up to the
   self-signed root by following each top certificate's *CA Issuers* URL (Authority Information Access). Servers
   don't send the root, and a Let's Encrypt chain ends in a cross-signed certificate, yet devices want the root
   as their trust anchor. A fetched certificate is accepted only if it verifiably signed the one below it. The
-  result is cached for a day. The portal offers each certificate as PEM or DER and all CA certificates as one
-  bundle; the private key is never exposed.
+  result is cached for a day. The portal lists the ECDSA and the RSA chain, offers each certificate as PEM or
+  DER and the CA certificates of both chains as one bundle; private keys are never exposed.
 
 ## Management portal (`internal/portal`)
 

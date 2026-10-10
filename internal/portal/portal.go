@@ -161,7 +161,7 @@ func (p *Portal) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /test", p.auth(p.testSend))
 	mux.HandleFunc("GET /settings", p.auth(p.settingsPage))
 	mux.HandleFunc("POST /settings/senders", p.auth(p.sendersSave))
-	mux.HandleFunc("GET /settings/certs/{n}/{format}", p.auth(p.certDownload))
+	mux.HandleFunc("GET /settings/certs/{chain}/{n}/{format}", p.auth(p.certDownload))
 	mux.HandleFunc("GET /settings/ca-bundle.pem", p.auth(p.caBundle))
 
 	go p.gc()

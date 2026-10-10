@@ -15,19 +15,56 @@ import (
 	"time"
 )
 
-// Chain returns the certificate chain for the main hostname, server certificate first,
-// for download in the portal (devices often need the CA imported before they trust the relay).
+// Chain is one certificate chain the relay serves, server certificate first.
+type Chain struct {
+	Key   string // "ecdsa" or "rsa"; used in download URLs
+	Label string
+	Certs []*x509.Certificate
+}
+
+// Chains returns the certificate chains for the main hostname, for download in the portal
+// (devices often need the CA imported before they trust the relay): the ECDSA chain and, when
+// the RSA fallback is active, the RSA chain.
 //
-// Servers don't send the root, and Let's Encrypt chains end in a cross-signed certificate, so the
-// served chain usually lacks the self-signed root that devices want as a trust anchor. Chain
-// therefore follows each top certificate's "CA Issuers" URL (Authority Information Access) until it
-// reaches a self-signed certificate. A fetched certificate is only accepted if it really signed
-// the one below it. If fetching fails, the served chain is returned as is.
-func (m *Manager) Chain(ctx context.Context) ([]*x509.Certificate, error) {
-	c, err := m.current()
-	if err != nil {
-		return nil, err
+// Servers don't send the root, and Let's Encrypt chains can end in a cross-signed certificate, so
+// a served chain usually lacks the self-signed root that devices want as a trust anchor. Each
+// chain is therefore completed by following the top certificate's "CA Issuers" URL (Authority
+// Information Access) until a self-signed certificate is reached. A fetched certificate is only
+// accepted if it really signed the one below it. If fetching fails, the served chain is returned.
+func (m *Manager) Chains(ctx context.Context) []Chain {
+	var out []Chain
+	for _, src := range []struct {
+		key, label string
+		get        getCert
+	}{
+		{"ecdsa", "ECDSA certificate (modern clients)", m.primary},
+		{"rsa", "RSA certificate (fallback for older devices)", m.legacy},
+	} {
+		if src.get == nil {
+			continue
+		}
+		c, err := src.get(&tls.ClientHelloInfo{ServerName: m.Domains[0]})
+		if err != nil || c == nil {
+			continue
+		}
+		if certs, err := completeChain(ctx, c); err == nil {
+			out = append(out, Chain{Key: src.key, Label: src.label, Certs: certs})
+		}
 	}
+	return out
+}
+
+type cachedChain struct {
+	certs   []*x509.Certificate
+	expires time.Time
+}
+
+var chainCache = struct {
+	sync.Mutex
+	m map[string]cachedChain // keyed by the server certificate
+}{m: map[string]cachedChain{}}
+
+func completeChain(ctx context.Context, c *tls.Certificate) ([]*x509.Certificate, error) {
 	chain := make([]*x509.Certificate, 0, len(c.Certificate)+1)
 	for _, der := range c.Certificate {
 		cert, err := x509.ParseCertificate(der)
@@ -43,8 +80,14 @@ func (m *Manager) Chain(ctx context.Context) ([]*x509.Certificate, error) {
 	key := string(chain[0].Raw)
 	chainCache.Lock()
 	defer chainCache.Unlock()
-	if chainCache.key == key && time.Now().Before(chainCache.expires) {
-		return chainCache.chain, nil
+	now := time.Now()
+	if hit, ok := chainCache.m[key]; ok && now.Before(hit.expires) {
+		return hit.certs, nil
+	}
+	for k, v := range chainCache.m { // drop entries of renewed certificates
+		if now.After(v.expires) {
+			delete(chainCache.m, k)
+		}
 	}
 	complete := true
 	for hops := 0; hops < 4 && !SelfSigned(chain[len(chain)-1]); hops++ {
@@ -60,32 +103,8 @@ func (m *Manager) Chain(ctx context.Context) ([]*x509.Certificate, error) {
 	if !complete {
 		ttl = time.Minute
 	}
-	chainCache.key, chainCache.chain, chainCache.expires = key, chain, time.Now().Add(ttl)
+	chainCache.m[key] = cachedChain{chain, now.Add(ttl)}
 	return chain, nil
-}
-
-var chainCache struct {
-	sync.Mutex
-	key     string
-	chain   []*x509.Certificate
-	expires time.Time
-}
-
-// current returns the certificate served for the main hostname.
-func (m *Manager) current() (*tls.Certificate, error) {
-	if m.TLSConfig.GetCertificate != nil {
-		c, err := m.TLSConfig.GetCertificate(&tls.ClientHelloInfo{ServerName: m.Domains[0]})
-		if err != nil {
-			return nil, err
-		}
-		if c != nil {
-			return c, nil
-		}
-	}
-	if len(m.TLSConfig.Certificates) > 0 {
-		return &m.TLSConfig.Certificates[0], nil
-	}
-	return nil, errors.New("no certificate")
 }
 
 // SelfSigned reports whether c is a root: issued by itself and signed with its own key.

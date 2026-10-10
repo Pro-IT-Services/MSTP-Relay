@@ -58,7 +58,13 @@ type TLSConfig struct {
 	// never sees the record. The relay then just waits DNSPropagationDelay (default 60s).
 	SkipDNSPropagationCheck bool          `yaml:"skip_dns_propagation_check"`
 	DNSPropagationDelay     time.Duration `yaml:"dns_propagation_delay"`
+	// Also hold an RSA certificate and serve it to clients that can't use the ECDSA one (many
+	// printers and scanners only offer RSA cipher suites). Defaults to true.
+	RSAFallback *bool `yaml:"rsa_fallback"`
 }
+
+// RSAFallbackEnabled reports whether an RSA certificate is kept next to the ECDSA one.
+func (t TLSConfig) RSAFallbackEnabled() bool { return t.RSAFallback == nil || *t.RSAFallback }
 
 type FirewallConfig struct {
 	// File that receives the enabled host rules as IP prefixes (DNS names resolved), one per

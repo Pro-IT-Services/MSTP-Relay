@@ -89,6 +89,9 @@ func run(log *slog.Logger, configPath string, resetPW bool) error {
 	if err != nil {
 		return err
 	}
+	for _, w := range tm.Warnings {
+		log.Warn(w)
+	}
 
 	gc := graph.New(cfg.Graph.TenantID, cfg.Graph.ClientID, cfg.Graph.ClientSecret, cfg.Graph.Timeout)
 	go func() {

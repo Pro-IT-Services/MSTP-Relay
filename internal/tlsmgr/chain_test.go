@@ -53,7 +53,18 @@ func managerFor(chain ...*testCA) *Manager {
 	for _, x := range chain {
 		c.Certificate = append(c.Certificate, x.cert.Raw)
 	}
-	return &Manager{Domains: []string{"relay.test"}, TLSConfig: &tls.Config{Certificates: []tls.Certificate{c}}}
+	return &Manager{Domains: []string{"relay.test"},
+		primary: func(*tls.ClientHelloInfo) (*tls.Certificate, error) { return &c, nil }}
+}
+
+// ecdsaChain returns the completed ECDSA chain of m.
+func ecdsaChain(t *testing.T, m *Manager) []*x509.Certificate {
+	t.Helper()
+	chains := m.Chains(context.Background())
+	if len(chains) != 1 || chains[0].Key != "ecdsa" {
+		t.Fatalf("chains = %+v", chains)
+	}
+	return chains[0].Certs
 }
 
 func stubHTTP(t *testing.T, fn func(url string) ([]byte, error)) {
@@ -81,10 +92,7 @@ func TestChainFetchesMissingRoot(t *testing.T) {
 		return nil, errors.New("unexpected fetch " + u)
 	})
 
-	chain, err := managerFor(leaf, inter).Chain(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	chain := ecdsaChain(t, managerFor(leaf, inter))
 	got := names(chain)
 	if len(got) != 3 || got[0] != "relay.test" || got[1] != "Test Intermediate" || got[2] != "Test Root" {
 		t.Fatalf("chain = %v", got)
@@ -102,24 +110,21 @@ func TestChainRejectsImpostorIssuer(t *testing.T) {
 	leaf := issue(t, "relay2.test", inter, false, "")
 	stubHTTP(t, func(string) ([]byte, error) { return impostor.cert.Raw, nil })
 
-	chain, err := managerFor(leaf, inter).Chain(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	chain := ecdsaChain(t, managerFor(leaf, inter))
 	if got := names(chain); len(got) != 2 {
 		t.Fatalf("impostor accepted: %v", got)
 	}
 }
 
 func TestChainSelfSignedNeedsNoFetch(t *testing.T) {
-	cert, err := selfSigned([]string{"relay3.test"})
+	cert, err := selfSigned([]string{"relay3.test"}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	stubHTTP(t, func(u string) ([]byte, error) { t.Errorf("unexpected fetch %s", u); return nil, errors.New("no") })
-	m := &Manager{Domains: []string{"relay3.test"}, TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}}}
-	chain, err := m.Chain(context.Background())
-	if err != nil || len(chain) != 1 || !SelfSigned(chain[0]) {
-		t.Fatalf("chain = %v, err = %v", names(chain), err)
+	m := &Manager{Domains: []string{"relay3.test"},
+		primary: func(*tls.ClientHelloInfo) (*tls.Certificate, error) { return &cert, nil }}
+	if chain := ecdsaChain(t, m); len(chain) != 1 || !SelfSigned(chain[0]) {
+		t.Fatalf("chain = %v", names(chain))
 	}
 }
