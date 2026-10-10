@@ -1,6 +1,7 @@
 package portal
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -24,6 +25,7 @@ import (
 	"graphrelay/internal/config"
 	"graphrelay/internal/relay"
 	"graphrelay/internal/store"
+	"graphrelay/internal/tlsmgr"
 )
 
 const testTenant = "11111111-2222-3333-4444-555555555555"
@@ -111,7 +113,12 @@ func newPortalEnv(t *testing.T, ml config.MicrosoftLoginConfig) *portalEnv {
 	cfg := &config.Config{Hostname: "relay.test"}
 	cfg.Graph.TenantID = testTenant
 	cfg.Portal.MicrosoftLogin = ml
-	p := &Portal{Cfg: cfg, Store: st, Matcher: relay.NewMatcher(st), Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	cfg.TLS.Mode = "selfsigned"
+	tm, err := tlsmgr.Setup(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := &Portal{Cfg: cfg, Store: st, TLS: tm, Matcher: relay.NewMatcher(st), Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	h, err := p.Handler()
 	if err != nil {
 		t.Fatal(err)

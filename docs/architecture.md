@@ -174,6 +174,12 @@ disk, so a crash cannot lose accepted mail. Devices retry `451` by themselves.
   fixed wait (`dns_propagation_delay`, default 60 s).
 - **`selfsigned` mode:** an in-memory ECDSA P-256 certificate valid for one year, for testing.
 - The same `tls.Config` (TLS 1.2+) serves STARTTLS, port 465 and the portal.
+- **Chain for download (`chain.go`):** `Manager.Chain` returns the served chain and completes it up to the
+  self-signed root by following each top certificate's *CA Issuers* URL (Authority Information Access). Servers
+  don't send the root, and a Let's Encrypt chain ends in a cross-signed certificate, yet devices want the root
+  as their trust anchor. A fetched certificate is accepted only if it verifiably signed the one below it. The
+  result is cached for a day. The portal offers each certificate as PEM or DER and all CA certificates as one
+  bundle; the private key is never exposed.
 
 ## Management portal (`internal/portal`)
 
@@ -189,7 +195,7 @@ needs no extra files.
 | Host form | Name, address, sender mailbox (dropdown from the allowed list), optional SMTP login with a password generator, Rewrite From, enabled, note |
 | Log | Message log with status filter, search and paging (100 per page) |
 | Test | Sends a test message straight through Graph from an allowed mailbox |
-| Settings | Allowed sender mailboxes, effective configuration (secrets masked), local password change |
+| Settings | Allowed sender mailboxes, TLS certificate chain with downloads (PEM, DER, CA bundle), effective configuration (secrets masked), local password change |
 
 ### Security model
 

@@ -286,7 +286,13 @@ one; copy it now, it is stored only as a hash). With a login set, a client must 
 that can't authenticate.
 
 Device settings: server `relay.example.com`, port **587 with STARTTLS** (or 25 with STARTTLS, or **465 with
-SSL/TLS**), authentication on, mechanism PLAIN or LOGIN. AUTH is only offered over TLS. Five failed logins from
+SSL/TLS**), authentication on, mechanism PLAIN or LOGIN. AUTH is only offered over TLS.
+
+**If the device doesn't trust the relay's certificate:** many printers and appliances ship without current
+root certificates. Under **Settings → TLS certificates** download the **Root CA** (PEM, or DER/.cer for
+devices that want a binary file) and import it into the device's trusted CA store. If it still refuses,
+import the intermediate CA certificates too, or the CA bundle. Don't import the server certificate itself:
+it is renewed about every 60 days. Five failed logins from
 one IP lock it out for 15 minutes; failures appear in **Log**.
 
 ## 9. Break-glass password login
