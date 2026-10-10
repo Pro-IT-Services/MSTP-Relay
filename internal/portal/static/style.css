@@ -182,3 +182,40 @@ section .flash { margin: 12px 0 0; }
 
 fieldset.group { border: 1px solid var(--border, #3333); border-radius: 8px; padding: 12px 14px; margin: 0; display: grid; gap: 10px; }
 fieldset.group legend { font-weight: 600; padding: 0 6px; }
+
+/* --- Activity page --- */
+:root { --series-ok: #3b82f6; --series-problem: #d03b3b; }
+.controls { padding-top: 14px; padding-bottom: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px; padding: 7px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.on { background: var(--accent); color: var(--accent-text); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.inline-check { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-item strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+.legend-item .swatch { margin-right: 0; }
+.swatch.s-ok { background: var(--series-ok); }
+.swatch.s-problem { background: var(--series-problem); }
+.chart { position: relative; min-height: 220px; }
+.chart svg { display: block; width: 100%; height: auto; }
+.chart path.s-ok { fill: var(--series-ok); }
+.chart path.s-problem { fill: var(--series-problem); }
+.chart .grid { stroke: var(--border); stroke-width: 1; }
+.chart .axis { stroke: var(--muted); stroke-width: 1; }
+.chart .tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .hit { fill: transparent; cursor: default; outline: none; }
+.chart .hit:hover, .chart .hit:focus-visible { fill: color-mix(in srgb, var(--text) 7%, transparent); }
+.chart-tip {
+  position: absolute; top: 4px; transform: translateX(-50%); pointer-events: none; white-space: nowrap;
+  background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0, 0, 0, .18);
+}
+.chart-tip strong { display: block; margin-bottom: 4px; }
+.empty-chart { padding: 80px 0; text-align: center; margin: 0; }
+td.numcol, th.numcol { text-align: right; font-variant-numeric: tabular-nums; }
+td.numcol.bad { color: var(--bad); font-weight: 600; }
+td.detail, .detail { max-width: 460px; overflow-wrap: anywhere; }
+button.link { border: 0; background: none; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; }

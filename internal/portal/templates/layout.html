@@ -18,6 +18,7 @@
     <nav>
       <a href="/" {{if eq .Active "dashboard"}}class="active"{{end}}>Dashboard</a>
       <a href="/hosts" {{if or (eq .Active "hosts") (eq .Active "host_form")}}class="active"{{end}}>Allowed hosts</a>
+      <a href="/activity" {{if eq .Active "activity"}}class="active"{{end}}>Activity</a>
       <a href="/logs" {{if eq .Active "logs"}}class="active"{{end}}>Message log</a>
       <a href="/test" {{if eq .Active "test"}}class="active"{{end}}>Send test</a>
       <a href="/settings" {{if eq .Active "settings"}}class="active"{{end}}>Settings</a>

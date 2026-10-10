@@ -1,0 +1,15 @@
+[Unit]
+Description=Publish firewall-blocked SMTP sources for the Graph Relay portal
+After=nftables.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/graphrelay-fw-report
+RuntimeDirectory=graphrelay-fw
+RuntimeDirectoryPreserve=yes
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_NETLINK AF_UNIX

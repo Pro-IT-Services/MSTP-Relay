@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh firewall-blocked SMTP sources for the Graph Relay portal
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

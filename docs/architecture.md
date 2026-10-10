@@ -103,6 +103,24 @@ from the portal (lower-case names, masked prefixes).
 
 Authentication state survives `RSET`, so a logged-in client can send several messages per connection.
 
+### Connection tracking (`conntrack.go`)
+
+The message log only knows about messages. Devices that fail earlier (a TLS handshake that never
+completes, a wrong password, a client that connects and leaves) would be invisible, and go-smtp reports none
+of it. So every accepted connection is wrapped:
+
+- `Relay.Listener` wraps the TCP listener; each connection becomes a `trackedConn` carrying a `connInfo`.
+  It sits below the TLS layer, so it also sees connections on port 465 and STARTTLS upgrades.
+- `Relay.TLSConfig` adds hooks to the TLS configuration. `GetConfigForClient` notes that a ClientHello
+  arrived and whether the client offers TLS 1.2 at all; a per-connection `GetCertificate` wrapper notes
+  which certificate type was served and whether the client can use it; `VerifyConnection` records the
+  negotiated version and cipher. The handshake only counts as complete once the client speaks SMTP inside
+  TLS, because in TLS 1.3 a client can still reject the certificate after the server's side is done.
+- Sessions add the announced EHLO name, the matched host rule, login results and message outcomes.
+- When the connection closes, `finishConn` classifies it (`ok`, `idle`, `tls_failed`, `auth_failed`,
+  `rejected`, `failed`), writes a plain-language reason (for example "the device only supports TLS 1.0/1.1"
+  or "no cipher suite in common") and stores one row in `conn_log`. Problems are also logged as warnings.
+
 ### Optional SMTP login (`auth.go`)
 
 A host rule may carry `smtp_user` and a bcrypt `smtp_pass_hash`.
@@ -199,6 +217,7 @@ needs no extra files.
 | Dashboard | Counters for the last 24 h (sent, failed, rejected), recent messages, certificate status |
 | Hosts | List, add, edit, enable/disable, delete rules; "Which rule applies?" checker for an IP |
 | Host form | Name, address, sender mailbox (dropdown from the allowed list), optional SMTP login with a password generator, Rewrite From, enabled, note |
+| Activity | Every connection that reached the relay (delivered, idle, failed) and the sources the firewall dropped: tiles, a chart over time, a per-device table and a live, filterable connection list |
 | Log | Message log with status filter, search and paging (100 per page) |
 | Test | Sends a test message straight through Graph from an allowed mailbox |
 | Settings | Allowed sender mailboxes, TLS certificate chain with downloads (PEM, DER, CA bundle), effective configuration (secrets masked), local password change |
@@ -232,6 +251,7 @@ SQLite through `modernc.org/sqlite` (pure Go, no CGO), WAL mode, one connection,
 | `hosts` | `name`, `match`, `sender`, `rewrite_from`, `enabled`, `note`, `created_at`, `smtp_user`, `smtp_pass_hash` |
 | `settings` | Key/value: `allowed_senders` (one address per line), `admin_user`, `admin_password_hash` |
 | `message_log` | Time, client IP, port, host rule, sender mailbox, envelope sender, envelope recipients, subject, size, status, error, duration |
+| `conn_log` | One row per SMTP connection: time, client IP, port, announced name, TLS version and cipher, certificate type served, login name and result, host rule, messages sent/failed/rejected, outcome, reason, duration |
 
 - **Message content is never stored.** Bodies and attachments exist only in memory while being delivered.
   Graph keeps a copy in the sending mailbox's Sent Items.
@@ -257,6 +277,13 @@ configured in the portal, without giving the network-facing relay any firewall p
 4. The nftables ruleset (from `deploy/harden-host.sh`) accepts 25/465/587 only from `@smtp4` / `@smtp6`.
    The sync service is `PartOf=nftables.service`, so reloading the firewall refills the sets.
 
+**Blocked sources.** Clients without a host rule are dropped by the firewall and never reach the relay, so
+they can't appear in `conn_log`. The ruleset therefore adds every dropped SMTP connection attempt's source
+to the dynamic sets `smtp_blocked4` / `smtp_blocked6` (per-address packet counter, kept for a day after the
+last attempt). `graphrelay-fw-report`, run by a systemd timer every 30 seconds, writes them as JSON into the
+root-owned `/run/graphrelay-fw`; with `firewall.blocked_dir` set, `firewall.ReadBlocked` parses those files
+for the Activity page.
+
 The relay itself runs as an unprivileged user with only `CAP_NET_BIND_SERVICE`.
 
 ## Deployment files (`deploy/`)
@@ -269,6 +296,7 @@ The relay itself runs as an unprivileged user with only `CAP_NET_BIND_SERVICE`.
 | `push.sh` | From a workstation: builds the Linux binary and ships it together with all current deploy files, then runs `install.sh` |
 | `harden-host.sh` | Debian host hardening: updates, unattended-upgrades, key-only SSH, nftables default-drop with a 120 s automatic rollback |
 | `graphrelay-fw-sync`, `graphrelay-fw.path`, `graphrelay-fw.service` | Firewall allowlist sync (see above) |
+| `graphrelay-fw-report`, `graphrelay-fw-report.service`, `graphrelay-fw-report.timer` | Publish the sources the firewall dropped, for the Activity page |
 
 ## Tests
 
@@ -280,4 +308,6 @@ The relay itself runs as an unprivileged user with only `CAP_NET_BIND_SERVICE`.
   unchanged.
 - Portal against a fake Entra ID (OIDC provider): role checks, foreign tenants, state replay, CSRF-protected
   forms, the allowed-sender dropdowns, SMTP login fields (validation, hashing, keep-on-edit, removal).
+- Connection tracking: delivered, idle, rejected, wrong password, TLS too old, certificate not trusted, RSA
+  fallback; certificate selection with real handshakes; the Activity data endpoint; the blocked-source reader.
 - Store migrations from an older schema, configuration from environment variables, the allowlist exporter.

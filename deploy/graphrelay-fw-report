@@ -1,0 +1,18 @@
+#!/bin/bash
+# Publish which source addresses the firewall dropped on the SMTP ports, for the portal's
+# Activity page. Runs as root from graphrelay-fw-report.timer. The nftables sets
+# inet filter smtp_blocked4 / smtp_blocked6 (see deploy/harden-host.sh) count dropped connection
+# attempts per source; this writes them as JSON into a root-owned directory the relay can read.
+# The relay itself needs no firewall privilege.
+set -euo pipefail
+
+DIR=${1:-/run/graphrelay-fw}
+install -d -m 0755 "$DIR"
+for set in smtp_blocked4 smtp_blocked6; do
+  if nft -j list set inet filter "$set" > "$DIR/.$set.tmp" 2>/dev/null; then
+    chmod 0644 "$DIR/.$set.tmp"
+    mv -f "$DIR/.$set.tmp" "$DIR/$set.json"
+  else
+    rm -f "$DIR/.$set.tmp" "$DIR/$set.json" # set missing: firewall without block counting
+  fi
+done

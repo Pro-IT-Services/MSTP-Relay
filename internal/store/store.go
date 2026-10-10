@@ -116,6 +116,9 @@ CREATE INDEX IF NOT EXISTS message_log_ts ON message_log(ts);
 			return err
 		}
 	}
+	if err := s.migrateConns(); err != nil {
+		return err
+	}
 	// Databases from before the allowed-senders list: seed it from the hosts' current
 	// mailboxes, so upgrading doesn't block mail that works today.
 	if _, err := s.GetSetting(keyAllowedSenders); errors.Is(err, ErrNotFound) {

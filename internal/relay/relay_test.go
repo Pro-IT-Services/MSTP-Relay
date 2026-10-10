@@ -122,13 +122,15 @@ func setupTLS(t *testing.T, tc *tls.Config) *env {
 	}
 	s := gosmtp.NewServer(rl.Backend("25", false))
 	s.Domain = "relay.test"
-	s.TLSConfig = tc
+	if tc != nil {
+		s.TLSConfig = rl.TLSConfig(tc)
+	}
 	s.MaxMessageBytes = 20 << 20
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	go s.Serve(ln)
+	go s.Serve(rl.Listener(ln, "25"))
 	t.Cleanup(func() { s.Close() })
 	return &env{addr: ln.Addr().String(), fake: fake, store: st}
 }

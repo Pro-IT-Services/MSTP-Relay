@@ -70,6 +70,9 @@ type FirewallConfig struct {
 	// File that receives the enabled host rules as IP prefixes (DNS names resolved), one per
 	// line, for deploy/graphrelay-fw-sync to load into nftables. Empty disables the export.
 	AllowlistFile string `yaml:"allowlist_file"`
+	// Directory where deploy/graphrelay-fw-report publishes the sources the firewall dropped on the
+	// SMTP ports (smtp_blocked4.json / smtp_blocked6.json), shown on the Activity page. Empty = off.
+	BlockedDir string `yaml:"blocked_dir"`
 }
 
 type GraphConfig struct {

@@ -76,3 +76,6 @@ portal:
 # deploy/graphrelay-fw-sync, so the SMTP ports open only for configured hosts. Empty = off.
 firewall:
   allowlist_file: ""   # e.g. /opt/graphrelay/data/firewall-allowlist.txt
+  # Where deploy/graphrelay-fw-report publishes the sources the firewall dropped on the SMTP ports,
+  # for the Activity page. Empty = off.
+  blocked_dir: ""      # e.g. /run/graphrelay-fw

@@ -62,6 +62,10 @@ table inet filter {
   # SMTP clients. Empty here; graphrelay-fw-sync fills them from the portal's host rules.
   set smtp4 { type ipv4_addr; flags interval; auto-merge; }
   set smtp6 { type ipv6_addr; flags interval; auto-merge; }
+  # Sources whose SMTP connection attempts were dropped, with a packet counter each, kept for a day
+  # after the last attempt. graphrelay-fw-report publishes them for the portal's Activity page.
+  set smtp_blocked4 { type ipv4_addr; size 4096; flags dynamic,timeout; counter; timeout 1d; }
+  set smtp_blocked6 { type ipv6_addr; size 4096; flags dynamic,timeout; counter; timeout 1d; }
   chain input {
     type filter hook input priority filter; policy drop;
     iif lo accept
@@ -73,6 +77,9 @@ table inet filter {
     ip saddr @trusted4 tcp dport 8443 accept
     ip saddr @smtp4 tcp dport { 25, 465, 587 } accept
     ip6 saddr @smtp6 tcp dport { 25, 465, 587 } accept
+    # Everything else on the SMTP ports is dropped by the policy; note who tried.
+    tcp dport { 25, 465, 587 } ct state new update @smtp_blocked4 { ip saddr }
+    tcp dport { 25, 465, 587 } ct state new update @smtp_blocked6 { ip6 saddr }
   }
   chain forward { type filter hook forward priority filter; policy drop; }
   chain output  { type filter hook output priority filter; policy accept; }

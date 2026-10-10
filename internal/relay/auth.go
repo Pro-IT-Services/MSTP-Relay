@@ -121,7 +121,9 @@ func (s *session) checkLogin(user, pass string) error {
 	}
 	userOK := subtle.ConstantTimeCompare([]byte(user), []byte(host.SMTPUser)) == 1
 	passOK := bcrypt.CompareHashAndPassword([]byte(host.SMTPPassHash), []byte(pass)) == nil
+	s.note(func(i *connInfo) { i.authUser = user })
 	if !userOK || !passOK {
+		s.note(func(i *connInfo) { i.authFails++ })
 		s.relay.authFails.fail(s.ip, now)
 		s.record(&store.LogEntry{Status: "rejected", HostID: host.ID, HostName: host.Name, Sender: host.Sender,
 			Error: fmt.Sprintf("SMTP login failed for user %q", truncate(user, 64))})
@@ -130,6 +132,7 @@ func (s *session) checkLogin(user, pass string) error {
 	}
 	s.relay.authFails.reset(s.ip)
 	s.authHostID = host.ID
+	s.note(func(i *connInfo) { i.authOK, i.hostID, i.hostName = true, host.ID, host.Name })
 	s.relay.Log.Info("smtp login", "ip", s.ip, "host", host.Name, "user", user)
 	return nil
 }

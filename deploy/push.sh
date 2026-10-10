@@ -17,7 +17,7 @@ VERSION=$(git describe --always --dirty)
 echo "== build $VERSION"
 GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=$VERSION" -o "$TMP/graphrelay" ./cmd/graphrelay
 cp deploy/install.sh deploy/graphrelay.service deploy/graphrelay.env.example \
-   deploy/graphrelay-fw-sync deploy/graphrelay-fw.service deploy/graphrelay-fw.path "$TMP/"
+   deploy/graphrelay-fw-sync deploy/graphrelay-fw.service deploy/graphrelay-fw.path    deploy/graphrelay-fw-report deploy/graphrelay-fw-report.service deploy/graphrelay-fw-report.timer "$TMP/"
 cp "$CONFIG" "$TMP/config.yaml"
 
 echo "== upload to $HOST"

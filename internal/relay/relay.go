@@ -36,7 +36,14 @@ type Relay struct {
 func (r *Relay) Backend(port string, requireTLS bool) smtp.Backend {
 	return smtp.BackendFunc(func(c *smtp.Conn) (smtp.Session, error) {
 		ip := remoteIP(c.Conn())
-		return &session{relay: r, conn: c, ip: ip, port: port, requireTLS: requireTLS}, nil
+		s := &session{relay: r, conn: c, ip: ip, port: port, requireTLS: requireTLS, info: infoOf(c.Conn())}
+		s.note(func(i *connInfo) {
+			i.helo = c.Hostname()
+			if _, ok := c.TLSConnectionState(); ok {
+				i.tlsDone = true // the client is speaking SMTP inside TLS
+			}
+		})
+		return s, nil
 	})
 }
 
@@ -59,6 +66,8 @@ type session struct {
 	rcpts []string
 
 	authHostID int64 // host rule the client logged in for (0 = not logged in); survives RSET
+
+	info *connInfo // connection record; nil when the listener isn't tracked
 }
 
 func smtpErr(code int, enh smtp.EnhancedCode, msg string) *smtp.SMTPError {
@@ -181,6 +190,21 @@ func (s *session) record(e *store.LogEntry) {
 	if err := s.relay.Store.AddLog(e); err != nil {
 		s.relay.Log.Error("write message log", "err", err)
 	}
+	s.note(func(i *connInfo) {
+		if e.HostID != 0 {
+			i.hostID, i.hostName = e.HostID, e.HostName
+		}
+		switch e.Status {
+		case "sent":
+			i.sent++
+		case "failed":
+			i.failed++
+			i.lastErr = e.Error
+		default:
+			i.rejected++
+			i.lastErr = e.Error
+		}
+	})
 }
 
 func (s *session) Reset() {

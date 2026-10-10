@@ -157,6 +157,8 @@ func (p *Portal) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /hosts/{id}/delete", p.auth(p.hostDelete))
 	mux.HandleFunc("POST /hosts/{id}/toggle", p.auth(p.hostToggle))
 	mux.HandleFunc("GET /logs", p.auth(p.logs))
+	mux.HandleFunc("GET /activity", p.auth(p.activityPage))
+	mux.HandleFunc("GET /activity/data", p.auth(p.activityJSON))
 	mux.HandleFunc("GET /test", p.auth(p.testPage))
 	mux.HandleFunc("POST /test", p.auth(p.testSend))
 	mux.HandleFunc("GET /settings", p.auth(p.settingsPage))

@@ -210,6 +210,7 @@ Edit `config.yaml`:
 | `portal.microsoft_login.enabled` | `true`, `required_roles: ["Relay.Admin"]` |
 | `portal.allow_local_login` | `${GRAPHRELAY_ALLOW_LOCAL_LOGIN}` (break-glass switch, section 9) |
 | `firewall.allowlist_file` | `/opt/graphrelay/data/firewall-allowlist.txt` if you use the nftables integration |
+| `firewall.blocked_dir` | `/run/graphrelay-fw` to show firewall-blocked addresses on the Activity page (needs the ruleset from `harden-host.sh`) |
 
 Keep secrets out of the file: `graph.*` and `tls.cloudflare_api_token` already reference `${...}` variables.
 `config.yaml` is ignored by git.
@@ -275,6 +276,9 @@ journalctl -u graphrelay -f
 5. **Test:** choose the mailbox, send to yourself. A `403 ErrorAccessDenied` means the Exchange scope (step 3)
    is not active yet.
 6. Point the device at `relay.example.com`, port 25 (or 587 with STARTTLS). Check **Log** for `sent` entries.
+7. If a device doesn't get through, open **Activity**. It lists every connection attempt with the reason it
+   failed (TLS too old, no common cipher, certificate not trusted, wrong login, no host rule) and, with the
+   firewall integration, the addresses that were blocked before reaching the relay.
 
 For each new sender mailbox: tag it (3a), add it under **Settings → Allowed sender mailboxes**, then pick it in
 a host rule.

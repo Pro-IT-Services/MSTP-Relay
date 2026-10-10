@@ -130,14 +130,16 @@ func run(log *slog.Logger, configPath string, resetPW bool) error {
 		s.ErrorLog = smtpLogger{log.With("listener", label)}
 		var ln net.Listener
 		var err error
-		if implicitTLS {
-			ln, err = tls.Listen("tcp", addr, tm.TLSConfig)
-		} else {
-			s.TLSConfig = tm.TLSConfig // advertises STARTTLS
-			ln, err = net.Listen("tcp", addr)
-		}
+		ln, err = net.Listen("tcp", addr)
 		if err != nil {
 			return fmt.Errorf("listen %s (%s): %w", addr, label, err)
+		}
+		// Record every connection, and observe the TLS handshakes on it.
+		ln = rl.Listener(ln, label)
+		if implicitTLS {
+			ln = tls.NewListener(ln, rl.TLSConfig(tm.TLSConfig))
+		} else {
+			s.TLSConfig = rl.TLSConfig(tm.TLSConfig) // advertises STARTTLS
 		}
 		servers = append(servers, s)
 		log.Info("SMTP listening", "addr", addr, "type", label)
@@ -208,6 +210,9 @@ func pruneLoop(ctx context.Context, log *slog.Logger, st *store.Store, days int)
 	t := time.NewTicker(6 * time.Hour)
 	defer t.Stop()
 	for {
+		if _, err := st.PruneConns(time.Now().AddDate(0, 0, -days)); err != nil {
+			log.Error("prune connection log", "err", err)
+		}
 		if n, err := st.PruneLog(time.Now().AddDate(0, 0, -days)); err != nil {
 			log.Error("prune message log", "err", err)
 		} else if n > 0 {

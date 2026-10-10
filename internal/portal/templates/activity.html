@@ -1,0 +1,59 @@
+{{define "content"}}
+<div id="activity">
+  <section class="card controls">
+    <div class="row">
+      <div class="seg" id="act-range" role="group" aria-label="Time range">
+        <button type="button" data-range="1h">1 hour</button>
+        <button type="button" data-range="24h" class="on">24 hours</button>
+        <button type="button" data-range="7d">7 days</button>
+        <button type="button" data-range="30d">30 days</button>
+      </div>
+      <div class="seg" id="act-kind" role="group" aria-label="Result">
+        <button type="button" data-kind="" class="on">All</button>
+        <button type="button" data-kind="ok">Delivered</button>
+        <button type="button" data-kind="problem">Problems</button>
+        <button type="button" data-kind="idle">No message</button>
+      </div>
+      <input id="act-q" class="grow" type="search" placeholder="Filter by address, device name, host, login or text" autocomplete="off">
+      <label class="check inline-check"><input type="checkbox" id="act-auto" checked><span>Live</span></label>
+      <span class="muted small" id="act-updated" aria-live="polite"></span>
+    </div>
+  </section>
+
+  <section class="tiles" id="act-tiles" aria-live="polite"></section>
+
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>Connections over time</h2>
+        <p class="muted small" id="act-chart-sub">Connections that reached the relay, by result.</p>
+      </div>
+      <div class="legend" id="act-legend"></div>
+    </div>
+    <div class="chart" id="act-chart"></div>
+  </section>
+
+  <section class="card">
+    <h2>Devices</h2>
+    <p class="muted small">One row per address that connected in the selected period, with the result of its latest connection.
+    Click an address to show only its connections below.</p>
+    <div class="table-wrap" id="act-devices"></div>
+  </section>
+
+  <section class="card" id="act-blocked-card" hidden>
+    <h2>Blocked by the firewall</h2>
+    <p class="muted small">Addresses that tried the SMTP ports without an enabled host rule. The firewall dropped them before
+    they reached the relay, so they have no connection details. Attempts are counted per packet, so one try usually counts several times.</p>
+    <div class="table-wrap" id="act-blocked"></div>
+  </section>
+
+  <section class="card">
+    <h2>Connections</h2>
+    <p class="muted small" id="act-conns-sub">Newest first.</p>
+    <div class="table-wrap" id="act-conns"></div>
+  </section>
+
+  <noscript><p class="flash err">The Activity page needs JavaScript.</p></noscript>
+</div>
+<script src="/static/activity.js" defer></script>
+{{end}}
